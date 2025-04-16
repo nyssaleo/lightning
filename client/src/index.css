@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bitcoin-orange: #F7931A;
+  --bitcoin-orange-light: #FBA94C;
+  --bitcoin-orange-dark: #E87800;
+  --neutral-bg: #f8f9fc;
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --transition-bezier: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-color: var(--neutral-bg);
+  }
+}
+
+@layer components {
+  /* Custom Card Styling */
+  .lightning-card {
+    @apply bg-white rounded-2xl shadow-md overflow-hidden transition-all duration-200;
+    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .lightning-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Bitcoin Gradient Button */
+  .btn-bitcoin {
+    @apply relative overflow-hidden rounded-full font-medium text-white;
+    background: linear-gradient(135deg, var(--bitcoin-orange), var(--bitcoin-orange-dark));
+    transition: all 0.3s var(--transition-bezier);
+  }
+  
+  .btn-bitcoin:hover {
+    background: linear-gradient(135deg, var(--bitcoin-orange-light), var(--bitcoin-orange));
+    transform: translateY(-1px);
+  }
+  
+  .btn-bitcoin:active {
+    transform: translateY(1px);
+  }
+
+  /* Input styling */
+  .input-bitcoin {
+    @apply rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-orange-300 focus:border-transparent transition-all;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-all;
+  }
+  
+  /* Section titles */
+  .section-title {
+    @apply flex items-center text-xl font-semibold text-gray-800 mb-4;
+  }
+  
+  .section-title svg {
+    @apply text-bitcoin-orange mr-2 h-5 w-5;
+  }
+  
+  /* Success animations */
+  @keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  .success-animation {
+    animation: successPulse 0.5s var(--transition-bezier);
+  }
+  
+  /* Lightning design elements */
+  .lightning-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(247, 147, 26, 0.2), transparent);
+    margin: 1.5rem 0;
+  }
+  
+  /* QR Code container */
+  .qr-container {
+    @apply p-4 bg-white border border-gray-100 rounded-xl shadow-sm mx-auto;
+    max-width: 200px;
+  }
+}
+
+/* Bitcoin color utilities */
+.text-bitcoin-orange {
+  color: var(--bitcoin-orange);
+}
+
+.bg-bitcoin-orange {
+  background-color: var(--bitcoin-orange);
+}
+
+.border-bitcoin-orange {
+  border-color: var(--bitcoin-orange);
+}
+
+/* Progress bar for scroll payments */
+.scroll-progress {
+  @apply relative h-2 w-full overflow-hidden rounded-full bg-gray-100;
+}
+
+.scroll-progress-bar {
+  @apply absolute left-0 top-0 h-full bg-gradient-to-r from-bitcoin-orange to-bitcoin-orange-light transition-all duration-300;
+  background: linear-gradient(90deg, var(--bitcoin-orange), var(--bitcoin-orange-light));
+}
+
+/* Loader animation */
+@keyframes loadingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.loading-pulse {
+  animation: loadingPulse 1.5s infinite var(--transition-bezier);
+}
+
+/* QR code scanner line animation */
+@keyframes scannerLine {
+  0% { top: 5%; }
+  50% { top: 95%; }
+  100% { top: 5%; }
+}
+
+.animate-scanner-line {
+  animation: scannerLine 3s linear infinite;
+}
+
+/* Dark mode adjustments */
+.dark {
+  --bitcoin-orange: #F7931A;
+  --bitcoin-orange-light: #FBA94C;
+  --bitcoin-orange-dark: #E87800;
+  --neutral-bg: #111111;
+  color-scheme: dark;
+}
+
+.dark .lightning-card {
+  background-color: #1F1F1F;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .btn-bitcoin {
+  background: linear-gradient(135deg, var(--bitcoin-orange), var(--bitcoin-orange-dark));
+}
+
+.dark .btn-bitcoin:hover {
+  background: linear-gradient(135deg, var(--bitcoin-orange-light), var(--bitcoin-orange));
+}
+
+/* Loading shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(247, 147, 26, 0.3);
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(247, 147, 26, 0.5);
+}
