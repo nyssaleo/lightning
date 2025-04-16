@@ -119,12 +119,17 @@ const SendPayment: React.FC = () => {
     
     setIsProcessing(true);
     
+    setIsProcessing(true);
+    
     try {
+      console.log('Attempting payment with invoice:', cleanInvoice);
       // Send payment using WebLN
       const response = await webln.sendPayment(cleanInvoice);
+      console.log('Payment response:', response);
       
       // Add to transaction history
       addTransaction({
+
         type: 'payment',
         amount: invoiceDetails?.amount || 0, // Use extracted amount or default to 0
         description: 'Payment sent via Lightning invoice',

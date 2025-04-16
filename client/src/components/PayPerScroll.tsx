@@ -102,9 +102,11 @@ const PayPerScroll: React.FC = () => {
     setIsPaying(true);
     
     try {
+      await webln.enable();
+
       // Use keysend to make a direct payment
       const response = await webln.keysend({
-        destination: '023d70f2f76d283c6c4e58109ee3ad2031b727fdd507a8d6059ef8c779c5d357aa', // Demo node pubkey
+        destination: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f' , // Demo node pubkey
         amount: SATS_PER_SECTION,
         customRecords: {
           '696969': `Paid for section ${section} of the pay-per-scroll demo`
