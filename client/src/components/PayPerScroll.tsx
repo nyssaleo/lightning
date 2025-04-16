@@ -9,7 +9,9 @@ import {
   UnlockIcon, 
   BarChart3, 
   Info,
-  ArrowDown
+  ArrowDown,
+  TestTube, // For test mode indicator
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -22,6 +24,7 @@ import {
 } from '@/components/ui/card';
 import { LightningTooltip } from '@/components/ui/lightning-tooltip';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch'; // For toggling test mode
 import { toast } from '@/hooks/use-toast';
 
 // Define the ScrollPayment type for storing payment history
@@ -45,6 +48,9 @@ const PayPerScroll: React.FC = () => {
   const [sectionScrollPercent, setSectionScrollPercent] = useState(0);
   const [scrollPayments, setScrollPayments] = useState<ScrollPayment[]>([]);
   
+  // Test mode state
+  const [testMode, setTestMode] = useState(false);
+  
   // References
   const contentRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,6 +58,7 @@ const PayPerScroll: React.FC = () => {
   // Constants
   const SECTION_COUNT = 5;
   const SATS_PER_SECTION = 1;
+  const NODE_PUBKEY = '023d70f2f76d283c6c4e58109ee3ad2031b727fdd507a8d6059ef8c779c5d357aa'; // Demo node pubkey
   
   // Set up the scrollable content when component mounts
   useEffect(() => {
@@ -97,21 +104,31 @@ const PayPerScroll: React.FC = () => {
   
   // Process micropayment for a section
   const processPayment = async (section: number) => {
-    if (isPaying || !webln || !isConnected) return;
+    if (isPaying || (!webln && !testMode) || (!isConnected && !testMode)) return;
     
     setIsPaying(true);
     
     try {
-      await webln.enable();
-
-      // Use keysend to make a direct payment
-      const response = await webln.keysend({
-        destination: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f' , // Demo node pubkey
-        amount: SATS_PER_SECTION,
-        customRecords: {
-          '696969': `Paid for section ${section} of the pay-per-scroll demo`
-        }
-      });
+      let preimage = '';
+      
+      if (testMode) {
+        // Simulate payment in test mode
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+        // Generate a random preimage for the mocked payment
+        preimage = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      } else {
+        // Use keysend to make a direct payment
+        const response = await webln!.keysend({
+          destination: NODE_PUBKEY, // Demo node pubkey
+          amount: SATS_PER_SECTION,
+          customRecords: {
+            '696969': `Paid for section ${section} of the pay-per-scroll demo`
+          }
+        });
+        preimage = response.preimage;
+      }
       
       // Record the payment
       const newPayment: ScrollPayment = {
@@ -129,19 +146,26 @@ const PayPerScroll: React.FC = () => {
       addTransaction({
         type: 'pay-per-scroll',
         amount: SATS_PER_SECTION,
-        description: `Paid ${SATS_PER_SECTION} sats for content section ${section}`,
+        description: `${testMode ? '[TEST] ' : ''}Paid ${SATS_PER_SECTION} sats for content section ${section}`,
         status: 'success',
-        preimage: response.preimage
+        preimage: preimage
       });
       
       // Show success notification
       toast({
         title: 'Section Unlocked',
-        description: `Paid ${SATS_PER_SECTION} sats to unlock section ${section}`,
+        description: `${testMode ? '[TEST MODE] ' : ''}Paid ${SATS_PER_SECTION} sats to unlock section ${section}`,
         variant: 'default'
       });
     } catch (error) {
       console.error('Payment error:', error);
+      
+      // Check if it's an insufficient balance error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isInsufficientFunds = 
+        errorMessage.toLowerCase().includes('insufficient') ||
+        errorMessage.toLowerCase().includes('balance') ||
+        errorMessage.toLowerCase().includes('failed to send');
       
       // Add failed transaction to history
       addTransaction({
@@ -149,13 +173,15 @@ const PayPerScroll: React.FC = () => {
         amount: SATS_PER_SECTION,
         description: `Failed payment for content section ${section}`,
         status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
       
       // Show error notification
       toast({
         title: 'Payment Failed',
-        description: error instanceof Error ? error.message : 'Failed to make payment',
+        description: isInsufficientFunds 
+          ? 'Insufficient balance to make payment. Try enabling test mode to simulate payments.' 
+          : errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -165,7 +191,7 @@ const PayPerScroll: React.FC = () => {
   
   // Toggle the scroll payment feature
   const toggleScrollPayment = async () => {
-    if (!isConnected) {
+    if (!isConnected && !testMode) {
       try {
         await connect();
         toast({
@@ -185,11 +211,27 @@ const PayPerScroll: React.FC = () => {
       
       if (!isActive) {
         toast({
-          title: 'Pay-per-scroll Activated',
-          description: `You'll pay ${SATS_PER_SECTION} sat each time you reveal new content`,
+          title: `Pay-per-scroll ${testMode ? '(Test Mode)' : ''} Activated`,
+          description: `You'll ${testMode ? 'simulate paying' : 'pay'} ${SATS_PER_SECTION} sat each time you reveal new content`,
         });
       }
     }
+  };
+  
+  // Toggle test mode
+  const toggleTestMode = () => {
+    setTestMode(!testMode);
+    // Reset the demo if we're changing modes
+    if (isActive) {
+      resetDemo();
+    }
+    
+    toast({
+      title: !testMode ? 'Test Mode Enabled' : 'Test Mode Disabled',
+      description: !testMode 
+        ? 'Payments will be simulated without using real sats' 
+        : 'Payments will use real sats from your wallet',
+    });
   };
   
   // Reset the demo
@@ -214,13 +256,31 @@ const PayPerScroll: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl flex items-center">
-          <Scroll className="mr-2 h-5 w-5 text-bitcoin-orange" />
-          Pay-per-scroll
-        </CardTitle>
-        <CardDescription>
-          Micropayments as you read content
-        </CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle className="text-2xl flex items-center">
+              <Scroll className="mr-2 h-5 w-5 text-bitcoin-orange" />
+              Pay-per-scroll
+              {testMode && (
+                <Badge className="ml-2 bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
+                  <TestTube className="h-3 w-3 mr-1" />
+                  Test Mode
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription>
+              Micropayments as you read content
+            </CardDescription>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Test Mode</span>
+            <Switch 
+              checked={testMode} 
+              onCheckedChange={toggleTestMode} 
+              className={testMode ? "bg-purple-600" : ""}
+            />
+          </div>
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
@@ -229,6 +289,7 @@ const PayPerScroll: React.FC = () => {
             <p className="text-sm text-gray-500 dark:text-gray-400">Pay as you scroll</p>
             <p className="text-xs text-gray-400 dark:text-gray-500">
               {SATS_PER_SECTION} sat per section, {SECTION_COUNT} sections total
+              {testMode && <span className="text-purple-500 ml-1">(simulated payments)</span>}
             </p>
           </div>
           
@@ -247,7 +308,7 @@ const PayPerScroll: React.FC = () => {
               variant="outline" 
               size="sm"
               onClick={toggleScrollPayment}
-              disabled={!webln && !isConnected}
+              disabled={!webln && !testMode && !isConnected}
               className={isActive ? "border-red-200 text-red-700" : "border-green-200 text-green-700"}
             >
               {isActive ? (
@@ -264,6 +325,21 @@ const PayPerScroll: React.FC = () => {
             </Button>
           </div>
         </div>
+        
+        {/* Test Mode Alert */}
+        {testMode && (
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-md">
+            <div className="flex gap-2 text-purple-800 dark:text-purple-300">
+              <TestTube className="h-5 w-5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Test Mode Active</p>
+                <p className="text-xs mt-1">
+                  Payments are simulated without using real sats. Perfect for testing the experience.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Progress Bar */}
         <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
@@ -284,7 +360,9 @@ const PayPerScroll: React.FC = () => {
           </div>
           
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Total Paid</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {testMode ? 'Simulated' : 'Total'} Paid
+            </p>
             <div className="font-medium flex items-center">
               <span>{totalPaid} sats</span>
               <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
@@ -307,7 +385,9 @@ const PayPerScroll: React.FC = () => {
                 Content Locked
               </p>
               <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-3 max-w-xs">
-                Enable pay-per-scroll to read content and pay tiny amounts as you go
+                {testMode 
+                  ? 'Enable test mode to simulate payments as you scroll' 
+                  : 'Enable pay-per-scroll to read content and pay tiny amounts as you go'}
               </p>
               <ArrowDown className="h-5 w-5 text-bitcoin-orange animate-bounce" />
             </div>
@@ -348,7 +428,7 @@ const PayPerScroll: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center">
                 <BarChart3 className="h-3 w-3 text-bitcoin-orange mr-1" />
-                Payment History
+                {testMode ? 'Simulated Payment History' : 'Payment History'}
               </p>
               <Button 
                 variant="ghost" 
@@ -368,6 +448,9 @@ const PayPerScroll: React.FC = () => {
                     <span className="text-gray-400 dark:text-gray-500 ml-1">
                       ({new Date(payment.timestamp).toLocaleTimeString()})
                     </span>
+                    {testMode && (
+                      <span className="ml-1 text-purple-500 font-mono text-xs">test</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -380,6 +463,7 @@ const PayPerScroll: React.FC = () => {
         <p className="text-xs text-gray-500 dark:text-gray-400 w-full flex items-center justify-center">
           <Info className="h-3 w-3 mr-1.5" />
           Pay-per-scroll enables micropayments for content consumption
+          {testMode && <span className="ml-1">(currently in test mode)</span>}
         </p>
       </CardFooter>
     </Card>
